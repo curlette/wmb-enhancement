@@ -1,4 +1,4 @@
-%finds WM regions, differentiating between matrix and striosome regions in
+%Finds WM regions, differentiating between matrix and striosome regions in
 %calculations
 %
 %INPUT: folder of cropped MOR1 images
@@ -7,6 +7,7 @@
 
 close all
 clear all
+
 N = 20;
 low_in_increment = 0.001;
 high_in_increment = 0.0001;
@@ -48,7 +49,7 @@ for k = 1:length(wmbimages)
     
     blackedge = {};
     
-    %finding black borders
+    %finds black borders
     for m = 1:numRegions
         edge = 0;
         currentPixList = pixlists(m).PixelList;
@@ -83,12 +84,12 @@ for k = 1:length(wmbimages)
 
     results = cell(1,8);
     
-    for t = 1:length(invs) %loop through strio and matrix separately 
+    for t = 1:length(invs) %loops through strio and matrix separately 
         
         currentinv = invs{t};
         numignoredpx_edges = 0;
         
-        %remove black border regions
+        %removes black border regions
         for m = 1:length(blackedge)
             currentPixList = blackedge{m};
             [currentUnwantedArea, ~] = size(currentPixList);
@@ -115,16 +116,26 @@ for k = 1:length(wmbimages)
             nonblackimg = current2 > 0;
             pixlists = regionprops(nonblackimg, 'PixelList');
             [numRegions, ~] = size(pixlists);
-            numignoredpx2 = numignoredpx_edges;
-            
+            numignoredpx2 = numignoredpx_edges;            
             for m = 1:numRegions
+                edge = 0;
                 currentPixList = pixlists(m).PixelList;
-                [currentUnwantedArea, ~] = size(currentPixList);                
-                if currentUnwantedArea > nonblack_areathresh               
-                    numignoredpx2 = numignoredpx2 + currentUnwantedArea;
-                end              
-            end
-            
+                [currentUnwantedArea, ~] = size(currentPixList);
+                if currentUnwantedArea > nonblack_areathresh
+                    for n = 1:currentUnwantedArea
+                        curY = currentPixList(n,1);
+                        curX = currentPixList(n,2);
+                        if curY == 1 || curY == b || curX == 1 || curX == a
+                            edge = 1;                
+                        end            
+                    end
+                    if edge == 1
+                        current2(curX,curY) = 0;
+                        current2(curX,curY) = 0;
+                        numignoredpx2 = numignoredpx2 + currentUnwantedArea;
+                    end
+                end
+            end            
             nonblackimg = current2 > 0;
             low_in_previous = low_in;
             nonblackfrac_previous = nonblackfrac;
@@ -142,28 +153,34 @@ for k = 1:length(wmbimages)
         
         results{1,4*t - 1} = nonblackimg; %all wm bw
         
-        %make large WM/ventricles black in both images to be saved
+        %makes large WM/ventricles black in both images to be saved
         largewm = zeros(size(current2));
         nonblackimg = current2 > 0;
         pixlists = regionprops(nonblackimg, 'PixelList');
-        [numRegions, ~] = size(pixlists);
+        [numRegions, ~] = size(pixlists);        
         for m = 1:numRegions
+            edge = 0;
             currentPixList = pixlists(m).PixelList;
             [currentUnwantedArea, ~] = size(currentPixList);
-            
             if currentUnwantedArea > nonblack_areathresh
                 for n = 1:currentUnwantedArea
                     curY = currentPixList(n,1);
                     curX = currentPixList(n,2);
-                    current2(curX, curY) = 0;
-                    nonblackimg(curX, curY) = 0;   
+                    if curY == 1 || curY == b || curX == 1 || curX == a
+                        edge = 1;                
+                    end            
+                end
+                if edge == 1
+                    current2(curX,curY) = 0;                    
+                    nonblackimg(curX,curY) = 0;
                     largewm(curX,curY) = 1;
                 end
-            end            
+            end
         end
         
         results{1,4*t} = largewm; %large wm bw
         
+        %decreases high_in until medPixVal >= medPixVal_target
         medPixVal = median(current2(current2 > 0));
         if medPixVal < medPixVal_target
             while medPixVal < medPixVal_target
@@ -189,11 +206,13 @@ for k = 1:length(wmbimages)
         display(medPixVal);        
     end
     
+    %creates output images
     finalwmb_gray = imadd(results{1,1},results{1,5});
     finalwmb_bw = results{1,2} | results{1,6};
     finalwm_bw = results{1,3} | results{1,7};
     finallarge_wm = results{1,4} | results{1,8};
     
+    %saves output images
     newname = [names{k},'_wmb.png'];
     newname2 = [names{k},'_small_wm_bw.png'];
     newname3 = [names{k},'_wm_bw.png'];
